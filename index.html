@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Lista de compras para a chegada do Yuri.">
+  <title>Yuri — Lista de compras</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="page-shell">
+    <header class="hero">
+      <div class="bear" aria-hidden="true">🧸</div>
+
+      <div class="hero-copy">
+        <h1>Yuri <span>🧸🩵</span></h1>
+        <p class="script-title" style="font-size: 30px;">Quase tudo pronto para a sua chegada! ✨</p>
+        <p class="subtitle">Tudo o que nosso bebê precisa com amor e carinho 🩵</p>
+      </div>
+
+      <div class="hero-clouds" aria-hidden="true">💙 ☁️</div>
+    </header>
+
+    <nav class="tabs" aria-label="Navegação da lista">
+      <button class="tab active" data-tab="shopping" type="button">
+        <span>🛍️</span>
+        Lista de compras
+        <strong id="shoppingTabCount">0</strong>
+      </button>
+
+      <button class="tab" data-tab="purchased" type="button">
+        <span>✅</span>
+        Comprados
+        <strong id="purchasedTabCount">0</strong>
+      </button>
+    </nav>
+
+    <main>
+      <section class="intro-card">
+        <div>
+          <h2>Lista para a chegada do Yuri</h2>
+          <p>Os links são sugestões. Caso encontre o produto em outro lugar, sem problemas.</p>
+        </div>
+</section>
+
+      <section id="shoppingPanel" class="panel active-panel">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">Para comprar</p>
+            <h2>Lista de compras</h2>
+          </div>
+          <span id="shoppingCount" class="count-badge">0 itens</span>
+        </div>
+
+        <div id="shoppingList" class="items-list"></div>
+
+        <div id="shoppingEmpty" class="empty-state hidden">
+          <div class="empty-icon">🎉</div>
+          <h3>Tudo comprado!</h3>
+          <p>Todos os itens já estão na lista de comprados.</p>
+        </div>
+      </section>
+
+      <section id="purchasedPanel" class="panel purchased-panel">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow green">Finalizados</p>
+            <h2>Lista de comprados</h2>
+          </div>
+          <span id="purchasedCount" class="count-badge green-badge">0 itens</span>
+        </div>
+
+        <div id="purchasedList" class="items-list"></div>
+
+        <div id="purchasedEmpty" class="empty-state">
+          <div class="empty-icon">🛍️</div>
+          <h3>Nenhum item comprado ainda</h3>
+          <p>Ao marcar um item como comprado, ele aparecerá aqui.</p>
+        </div>
+      </section>
+
+      <aside class="tip-card">
+        <span class="tip-icon">💙</span>
+        <p><strong>Obrigado pelo carinho! Cada presente é recebido com muito amor e fará parte da chegada do nosso Yuri. 🧸</strong> </p>
+      </aside>
+    </main>
+
+    <footer>
+      <p>By development <strong>Studio Lunar</strong></p>
+      <a href="https://wa.me/5511926441714">Telefone: (11) 92644-1714</a>
+    </footer>
+  </div>
+
+  <template id="itemTemplate">
+    <article class="item-card">
+      <img class="item-image" src="" alt="" loading="lazy">
+
+      <div class="item-content">
+        <h3 class="item-name"></h3>
+        <p class="item-description"></p>
+
+        <a class="product-link" target="_blank" rel="noopener noreferrer">
+          Ver produto <span aria-hidden="true">↗</span>
+        </a>
+
+        <p class="reservation-label hidden"></p>
+      </div>
+
+      <div class="item-actions">
+        <button class="status-button" type="button"></button>
+        <button class="reserve-button" type="button"></button>
+      </div>
+    </article>
+  </template>
+
+  <div id="reservationModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-backdrop" data-close-modal></div>
+
+    <div class="modal-card">
+      <button class="modal-close" type="button" aria-label="Fechar" data-close-modal>×</button>
+
+      <p class="eyebrow">Reserva do presente</p>
+      <h2 id="modalTitle">Reservar item</h2>
+      <p id="modalItemName" class="modal-item-name"></p>
+
+      <form id="reservationForm">
+        <label for="reservationName">Digite o seu nome</label>
+        <input
+          id="reservationName"
+          name="reservationName"
+          type="text"
+          maxlength="60"
+          autocomplete="name"
+          placeholder="Ex.: Maria"
+          required
+        >
+
+        <div class="modal-actions">
+          <button class="secondary-button" type="button" data-close-modal>Cancelar</button>
+          <button class="primary-button" type="submit">Confirmar reserva</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
