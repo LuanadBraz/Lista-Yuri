@@ -1,33 +1,16 @@
-LISTA YURI — PASSO A PASSO CORRETO
+LISTA YURI — INSTALAÇÃO FINAL
 
-PARTE 1 — ATUALIZAR O GITHUB
-1. Extraia este ZIP no computador.
-2. Abra no GitHub o repositório: LuanaDBraz/Lista-Yuri.
-3. Clique em Add file > Upload files.
-4. Arraste TODOS os arquivos extraídos e a pasta img.
-5. Confirme a substituição de index.html, style.css e script.js.
-6. Clique em Commit changes.
+1) No GitHub, substitua os arquivos do repositório Lista-Yuri por todos os arquivos deste pacote.
+2) Confirme que render.yaml, server.js, package.json e script.js aparecem na raiz.
+3) No Render, exclua/cancele Blueprints antigos que ficaram presos.
+4) Clique em New > Blueprint.
+5) Escolha LuanaDBraz/Lista-Yuri.
+6) Blueprint Name: lista-yuri-final
+7) Branch: main
+8) Blueprint Path: render.yaml
+9) Confirme o custo e clique em Deploy Blueprint.
+10) Aguarde o serviço lista-yuri-api-luanadbraz ficar Live.
+11) Teste: https://lista-yuri-api-luanadbraz.onrender.com/api/health
+12) Depois abra: https://luanadbraz.github.io/Lista-Yuri/
 
-PARTE 2 — CRIAR PELO BLUEPRINT NO RENDER
-1. No Render, volte para o painel principal.
-2. Clique em New > Blueprint.
-3. Conecte o repositório LuanaDBraz/Lista-Yuri.
-4. O Render encontrará automaticamente o arquivo render.yaml.
-5. Confirme o serviço chamado lista-yuri-luana-api.
-6. Escolha uma instância PAGA quando o Render solicitar.
-7. Confirme a criação do disco de 1 GB.
-8. Clique em Apply ou Deploy Blueprint.
-9. Aguarde o status ficar Live.
-
-PARTE 3 — TESTAR
-1. Abra: https://lista-yuri-luana-api.onrender.com/api/health
-2. Deve aparecer: {"ok":true}
-3. Aguarde 1 a 3 minutos e abra: https://luanadbraz.github.io/Lista-Yuri/
-4. Teste em dois navegadores ou celulares diferentes.
-
-IMPORTANTE
-- NÃO crie Static Site no Render.
-- NÃO crie Firebase.
-- O GitHub Pages continuará sendo o endereço do site.
-- O Render servirá somente para salvar reservas e compras.
-- Se o nome lista-yuri-luana-api já estiver ocupado, use outro nome e altere a primeira linha API_URL do script.js para a URL gerada pelo Render.
+O site permanece no GitHub Pages. O Render salva as compras e reservas.
