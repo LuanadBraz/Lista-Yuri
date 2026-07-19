@@ -1,5 +1,9 @@
-const PURCHASED_KEY = "yuri-purchased-items-v2";
-const RESERVATIONS_KEY = "yuri-reservations-v2";
+const API_URL = "https://lista-yuri-api-luana-yuri-2026.onrender.com";
+const UPDATE_INTERVAL_MS = 5000;
+
+const IS_LOCAL_FILE = window.location.protocol === "file:";
+const LOCAL_PURCHASED_KEY = "yuri-purchased-items-v2";
+const LOCAL_RESERVATIONS_KEY = "yuri-reservations-v2";
 
 const initialItems = [
   {
@@ -102,9 +106,10 @@ const initialItems = [
   }
 ];
 
-let purchasedIds = loadJson(PURCHASED_KEY, []);
-let reservations = loadJson(RESERVATIONS_KEY, {});
+let purchasedIds = [];
+let reservations = {};
 let selectedReservationItemId = null;
+let isSaving = false;
 
 const shoppingList = document.querySelector("#shoppingList");
 const purchasedList = document.querySelector("#purchasedList");
@@ -128,24 +133,12 @@ const modalItemName = document.querySelector("#modalItemName");
 function atualizarSemanaGestacao() {
   const elementoSemana = document.querySelector("#gestationWeek");
 
-  // Evita erro caso o elemento não esteja no HTML.
-  if (!elementoSemana) {
-    return;
-  }
+  if (!elementoSemana) return;
 
-  /*
-    Data usada como referência:
-
-    Segunda-feira, 20/07/2026 = 29 semanas.
-
-    A partir dessa data, a contagem aumenta
-    automaticamente uma semana a cada 7 dias.
-  */
+  // Segunda-feira, 20/07/2026 = 29 semanas.
   const dataReferencia = new Date(2026, 6, 20, 12, 0, 0);
-
   const agora = new Date();
 
-  // Utilizamos o meio-dia para evitar diferenças de horário.
   const dataAtual = new Date(
     agora.getFullYear(),
     agora.getMonth(),
@@ -155,8 +148,7 @@ function atualizarSemanaGestacao() {
     0
   );
 
-  const milissegundosPorSemana =
-    7 * 24 * 60 * 60 * 1000;
+  const milissegundosPorSemana = 7 * 24 * 60 * 60 * 1000;
 
   const semanasPassadas = Math.floor(
     (dataAtual.getTime() - dataReferencia.getTime()) /
@@ -170,47 +162,144 @@ function atualizarSemanaGestacao() {
 }
 
 /* ==================================================
-   CARREGAMENTO E SALVAMENTO DOS DADOS
+   API COMPARTILHADA DO RENDER
    ================================================== */
 
-function loadJson(key, fallback) {
+async function apiRequest(path, options = {}) {
+  const response = await fetch(`${API_URL}${path}`, {
+    method: options.method || "GET",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: options.body ? JSON.stringify(options.body) : undefined,
+    cache: "no-store"
+  });
+
+  let result;
+
   try {
-    const value = JSON.parse(localStorage.getItem(key));
-    return value ?? fallback;
+    result = await response.json();
   } catch {
-    return fallback;
+    result = {};
   }
+
+  if (!response.ok || result.ok === false) {
+    throw new Error(
+      result.message || "Não foi possível atualizar a lista."
+    );
+  }
+
+  return result;
 }
 
-function saveState() {
+function applyState(state) {
+  purchasedIds = Array.isArray(state?.purchasedIds)
+    ? state.purchasedIds
+    : [];
+
+  reservations =
+    state?.reservations && typeof state.reservations === "object"
+      ? state.reservations
+      : {};
+
+  render();
+}
+
+function loadLocalState() {
+  try {
+    purchasedIds =
+      JSON.parse(localStorage.getItem(LOCAL_PURCHASED_KEY)) || [];
+
+    reservations =
+      JSON.parse(localStorage.getItem(LOCAL_RESERVATIONS_KEY)) || {};
+  } catch {
+    purchasedIds = [];
+    reservations = {};
+  }
+
+  render();
+}
+
+function saveLocalState() {
   localStorage.setItem(
-    PURCHASED_KEY,
+    LOCAL_PURCHASED_KEY,
     JSON.stringify(purchasedIds)
   );
 
   localStorage.setItem(
-    RESERVATIONS_KEY,
+    LOCAL_RESERVATIONS_KEY,
     JSON.stringify(reservations)
   );
+}
+
+async function loadSharedState({ silent = false } = {}) {
+  if (IS_LOCAL_FILE) {
+    loadLocalState();
+    return;
+  }
+
+  try {
+    const result = await apiRequest("/api/state");
+    applyState(result.state);
+  } catch (error) {
+    console.error(error);
+
+    if (!silent) {
+      window.alert(
+        "A lista compartilhada ainda não conseguiu se conectar ao servidor do Render."
+      );
+    }
+  }
+}
+
+function setSavingState(saving) {
+  isSaving = saving;
+
+  document
+    .querySelectorAll(".status-button, .reserve-button, .primary-button")
+    .forEach(button => {
+      button.disabled = saving || button.classList.contains("is-disabled");
+    });
 }
 
 /* ==================================================
    CONTROLE DOS ITENS COMPRADOS
    ================================================== */
 
-function setPurchased(itemId, purchased) {
-  if (purchased) {
-    if (!purchasedIds.includes(itemId)) {
-      purchasedIds.push(itemId);
+async function setPurchased(itemId, purchased) {
+  if (isSaving) return;
+
+  if (IS_LOCAL_FILE) {
+    if (purchased) {
+      if (!purchasedIds.includes(itemId)) {
+        purchasedIds.push(itemId);
+      }
+      delete reservations[itemId];
+    } else {
+      purchasedIds = purchasedIds.filter(id => id !== itemId);
     }
-  } else {
-    purchasedIds = purchasedIds.filter(
-      id => id !== itemId
-    );
+
+    saveLocalState();
+    render();
+    return;
   }
 
-  saveState();
-  render();
+  try {
+    setSavingState(true);
+
+    const result = await apiRequest("/api/purchased", {
+      method: "POST",
+      body: { itemId, purchased }
+    });
+
+    applyState(result.state);
+  } catch (error) {
+    console.error(error);
+    window.alert(error.message);
+    await loadSharedState({ silent: true });
+  } finally {
+    setSavingState(false);
+  }
 }
 
 /* ==================================================
@@ -219,79 +308,70 @@ function setPurchased(itemId, purchased) {
 
 function openReservationModal(item) {
   selectedReservationItemId = item.id;
-
   modalItemName.textContent = item.name;
-
-  reservationName.value =
-    reservations[item.id] || "";
-
+  reservationName.value = "";
   reservationModal.classList.remove("hidden");
-
   document.body.style.overflow = "hidden";
 
-  setTimeout(() => {
-    reservationName.focus();
-  }, 50);
+  setTimeout(() => reservationName.focus(), 50);
 }
 
 function closeReservationModal() {
   selectedReservationItemId = null;
-
   reservationModal.classList.add("hidden");
-
   document.body.style.overflow = "";
-
   reservationForm.reset();
 }
 
-function removeReservation(itemId) {
+async function removeReservation(itemId) {
   const reservedBy = reservations[itemId];
 
   const confirmed = window.confirm(
     `Este item está reservado por ${reservedBy}. Deseja cancelar a reserva?`
   );
 
-  if (!confirmed) {
+  if (!confirmed || isSaving) return;
+
+  if (IS_LOCAL_FILE) {
+    delete reservations[itemId];
+    saveLocalState();
+    render();
     return;
   }
 
-  delete reservations[itemId];
+  try {
+    setSavingState(true);
 
-  saveState();
-  render();
+    const result = await apiRequest("/api/reservations/cancel", {
+      method: "POST",
+      body: { itemId }
+    });
+
+    applyState(result.state);
+  } catch (error) {
+    console.error(error);
+    window.alert(error.message);
+    await loadSharedState({ silent: true });
+  } finally {
+    setSavingState(false);
+  }
 }
 
 /* ==================================================
-   CRIAÇÃO DOS CARTÕES DOS PRODUTOS
+   CRIAÇÃO DOS CARTÕES
    ================================================== */
 
 function createItemCard(item, isPurchased) {
-  const fragment =
-    itemTemplate.content.cloneNode(true);
+  const fragment = itemTemplate.content.cloneNode(true);
 
-  const card =
-    fragment.querySelector(".item-card");
-
-  const image =
-    fragment.querySelector(".item-image");
-
-  const name =
-    fragment.querySelector(".item-name");
-
-  const description =
-    fragment.querySelector(".item-description");
-
-  const productLink =
-    fragment.querySelector(".product-link");
-
-  const reservationLabel =
-    fragment.querySelector(".reservation-label");
-
-  const statusButton =
-    fragment.querySelector(".status-button");
-
-  const reserveButton =
-    fragment.querySelector(".reserve-button");
+  const card = fragment.querySelector(".item-card");
+  const image = fragment.querySelector(".item-image");
+  const name = fragment.querySelector(".item-name");
+  const description = fragment.querySelector(".item-description");
+  const productLink = fragment.querySelector(".product-link");
+  const reservationLabel = fragment.querySelector(".reservation-label");
+  const statusButton = fragment.querySelector(".status-button");
+  const reserveButton = fragment.querySelector(".reserve-button");
 
   image.src = item.image;
   image.alt = `Foto de ${item.name}`;
@@ -312,79 +392,56 @@ function createItemCard(item, isPurchased) {
 
   const reservedBy = reservations[item.id];
 
-  if (reservedBy) {
-    reservationLabel.textContent =
-      `🔖 Reservado por ${reservedBy}`;
+  if (isPurchased) {
+    card.classList.add("is-purchased");
+    statusButton.textContent = "↩ Voltar para compras";
+    statusButton.addEventListener(
+      "click",
+      () => setPurchased(item.id, false)
+    );
 
+    reserveButton.textContent = "✅ Já comprado";
+    reserveButton.disabled = true;
+    reserveButton.classList.add("is-disabled");
+    return fragment;
+  }
+
+  if (reservedBy) {
+    reservationLabel.textContent = `🔖 Reservado por ${reservedBy}`;
     reservationLabel.classList.remove("hidden");
 
-    reserveButton.textContent =
-      "Cancelar reserva";
-
+    reserveButton.textContent = "Cancelar reserva";
     reserveButton.classList.add("is-reserved");
-
     reserveButton.addEventListener(
       "click",
       () => removeReservation(item.id)
     );
+
+    statusButton.textContent = "🔒 Item reservado";
+    statusButton.disabled = true;
+    statusButton.classList.add("is-disabled");
+    statusButton.title = `Reservado por ${reservedBy}`;
   } else {
     reserveButton.textContent = "🔖 Reservar";
-
     reserveButton.addEventListener(
       "click",
       () => openReservationModal(item)
     );
-  }
 
-  statusButton.textContent = isPurchased
-    ? "↩ Voltar para compras"
-    : reservedBy
-      ? "🔒 Item reservado"
-      : "✓ Marcar como comprado";
-
-  /*
-    Um item reservado não pode ser marcado
-    como comprado.
-
-    Ao cancelar a reserva, o botão volta
-    a ser habilitado.
-  */
-  if (reservedBy && !isPurchased) {
-    statusButton.disabled = true;
-
-    statusButton.classList.add("is-disabled");
-
-    statusButton.title =
-      `Reservado por ${reservedBy}`;
-  } else {
+    statusButton.textContent = "✓ Marcar como comprado";
     statusButton.addEventListener(
       "click",
-      () => setPurchased(
-        item.id,
-        !isPurchased
-      )
+      () => setPurchased(item.id, true)
     );
-  }
-
-  if (isPurchased) {
-    card.classList.add("is-purchased");
   }
 
   return fragment;
 }
 
-/* ==================================================
-   CONTADORES DOS PRODUTOS
-   ================================================== */
-
 function updateCount(element, amount) {
   element.textContent =
     `${amount} ${amount === 1 ? "item" : "itens"}`;
 }
-
-/* ==================================================
-   ATUALIZAÇÃO DA TELA
-   ================================================== */
 
 function render() {
   const shoppingItems = initialItems.filter(
@@ -399,32 +456,18 @@ function render() {
   purchasedList.replaceChildren();
 
   shoppingItems.forEach(item => {
-    shoppingList.appendChild(
-      createItemCard(item, false)
-    );
+    shoppingList.appendChild(createItemCard(item, false));
   });
 
   purchasedItems.forEach(item => {
-    purchasedList.appendChild(
-      createItemCard(item, true)
-    );
+    purchasedList.appendChild(createItemCard(item, true));
   });
 
-  updateCount(
-    shoppingCount,
-    shoppingItems.length
-  );
+  updateCount(shoppingCount, shoppingItems.length);
+  updateCount(purchasedCount, purchasedItems.length);
 
-  updateCount(
-    purchasedCount,
-    purchasedItems.length
-  );
-
-  shoppingTabCount.textContent =
-    shoppingItems.length;
-
-  purchasedTabCount.textContent =
-    purchasedItems.length;
+  shoppingTabCount.textContent = shoppingItems.length;
+  purchasedTabCount.textContent = purchasedItems.length;
 
   shoppingEmpty.classList.toggle(
     "hidden",
@@ -441,55 +484,55 @@ function render() {
    CONFIRMAÇÃO DA RESERVA
    ================================================== */
 
-reservationForm.addEventListener(
-  "submit",
-  event => {
-    event.preventDefault();
+reservationForm.addEventListener("submit", async event => {
+  event.preventDefault();
 
-    const name =
-      reservationName.value.trim();
+  const name = reservationName.value.trim();
+  const itemId = selectedReservationItemId;
 
-    if (!name || !selectedReservationItemId) {
-      return;
-    }
+  if (!name || !itemId || isSaving) return;
 
-    reservations[selectedReservationItemId] =
-      name;
-
-    saveState();
+  if (IS_LOCAL_FILE) {
+    reservations[itemId] = name;
+    saveLocalState();
     closeReservationModal();
     render();
+    return;
   }
-);
 
-/* ==================================================
-   FECHAMENTO DO MODAL
-   ================================================== */
+  try {
+    setSavingState(true);
+
+    const result = await apiRequest("/api/reservations", {
+      method: "POST",
+      body: { itemId, name }
+    });
+
+    closeReservationModal();
+    applyState(result.state);
+  } catch (error) {
+    console.error(error);
+    window.alert(error.message);
+    await loadSharedState({ silent: true });
+  } finally {
+    setSavingState(false);
+  }
+});
 
 document
   .querySelectorAll("[data-close-modal]")
   .forEach(element => {
-    element.addEventListener(
-      "click",
-      closeReservationModal
-    );
+    element.addEventListener("click", closeReservationModal);
   });
 
-document.addEventListener(
-  "keydown",
-  event => {
-    if (
-      event.key === "Escape" &&
-      !reservationModal.classList.contains("hidden")
-    ) {
-      closeReservationModal();
-    }
+document.addEventListener("keydown", event => {
+  if (
+    event.key === "Escape" &&
+    !reservationModal.classList.contains("hidden")
+  ) {
+    closeReservationModal();
   }
-);
-
-/* ==================================================
-   NAVEGAÇÃO ENTRE AS ABAS
-   ================================================== */
+});
 
 document
   .querySelectorAll(".tab")
@@ -497,17 +540,13 @@ document
     tab.addEventListener("click", () => {
       document
         .querySelectorAll(".tab")
-        .forEach(item => {
-          item.classList.remove("active");
-        });
+        .forEach(item => item.classList.remove("active"));
 
       tab.classList.add("active");
 
       document
         .querySelectorAll(".panel")
-        .forEach(panel => {
-          panel.classList.remove("active-panel");
-        });
+        .forEach(panel => panel.classList.remove("active-panel"));
 
       const panel =
         tab.dataset.tab === "shopping"
@@ -526,11 +565,20 @@ document
   });
 
 /* ==================================================
-   INICIALIZAÇÃO DA PÁGINA
+   INICIALIZAÇÃO
    ================================================== */
 
-// Atualiza a semana de gestação.
 atualizarSemanaGestacao();
-
-// Exibe as listas de compras e comprados.
 render();
+loadSharedState();
+
+if (!IS_LOCAL_FILE) {
+  setInterval(() => {
+    if (
+      !isSaving &&
+      reservationModal.classList.contains("hidden")
+    ) {
+      loadSharedState({ silent: true });
+    }
+  }, UPDATE_INTERVAL_MS);
+}

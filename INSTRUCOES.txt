@@ -1,0 +1,30 @@
+LISTA YURI — PASSOS EXATOS
+
+1. No GitHub, abra o repositório Lista-Yuri.
+2. Envie e substitua TODOS estes arquivos:
+   - index.html
+   - script.js
+   - style.css
+   - server.js
+   - package.json
+   - render.yaml
+3. Mantenha a pasta img já existente.
+4. Confirme o Commit changes.
+5. No Render, exclua os serviços/Blueprints antigos da Lista Yuri.
+6. Clique em New > Blueprint.
+7. Selecione LuanaDBraz/Lista-Yuri.
+8. Use:
+   Blueprint Name: lista-yuri-final
+   Branch: main
+   Blueprint Path: render.yaml
+9. Confirme o plano Starter e o disco de 1 GB.
+10. Clique em Deploy Blueprint.
+11. Aguarde o serviço ficar Live.
+12. Teste:
+    https://lista-yuri-api-luana-yuri-2026.onrender.com/api/health
+13. Depois abra:
+    https://luanadbraz.github.io/Lista-Yuri/
+
+IMPORTANTE:
+O index.html e o script.js deste pacote DEVEM substituir os antigos.
+O contador das semanas de gestação continua funcionando.
