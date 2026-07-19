@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: lista-yuri-luana-api
+    runtime: node
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: DATA_DIR
+        value: /var/data
+    disk:
+      name: lista-yuri-data
+      mountPath: /var/data
+      sizeGB: 1
