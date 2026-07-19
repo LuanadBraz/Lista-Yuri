@@ -75,7 +75,7 @@ const initialItems = [
   {
     id: "babadores",
     name: "Babadores",
-    description: "Babadores macios",
+    description: "Babadores macios.",
     image: "img/babador.jpeg",
     link: ""
   },
@@ -121,6 +121,58 @@ const reservationForm = document.querySelector("#reservationForm");
 const reservationName = document.querySelector("#reservationName");
 const modalItemName = document.querySelector("#modalItemName");
 
+/* ==================================================
+   CONTADOR AUTOMÁTICO DAS SEMANAS DE GESTAÇÃO
+   ================================================== */
+
+function atualizarSemanaGestacao() {
+  const elementoSemana = document.querySelector("#gestationWeek");
+
+  // Evita erro caso o elemento não esteja no HTML.
+  if (!elementoSemana) {
+    return;
+  }
+
+  /*
+    Data usada como referência:
+
+    Segunda-feira, 20/07/2026 = 29 semanas.
+
+    A partir dessa data, a contagem aumenta
+    automaticamente uma semana a cada 7 dias.
+  */
+  const dataReferencia = new Date(2026, 6, 20, 12, 0, 0);
+
+  const agora = new Date();
+
+  // Utilizamos o meio-dia para evitar diferenças de horário.
+  const dataAtual = new Date(
+    agora.getFullYear(),
+    agora.getMonth(),
+    agora.getDate(),
+    12,
+    0,
+    0
+  );
+
+  const milissegundosPorSemana =
+    7 * 24 * 60 * 60 * 1000;
+
+  const semanasPassadas = Math.floor(
+    (dataAtual.getTime() - dataReferencia.getTime()) /
+    milissegundosPorSemana
+  );
+
+  const semanasGestacao = 29 + semanasPassadas;
+
+  elementoSemana.textContent =
+    `🤰 ${semanasGestacao} semanas de gestação`;
+}
+
+/* ==================================================
+   CARREGAMENTO E SALVAMENTO DOS DADOS
+   ================================================== */
+
 function loadJson(key, fallback) {
   try {
     const value = JSON.parse(localStorage.getItem(key));
@@ -131,66 +183,122 @@ function loadJson(key, fallback) {
 }
 
 function saveState() {
-  localStorage.setItem(PURCHASED_KEY, JSON.stringify(purchasedIds));
-  localStorage.setItem(RESERVATIONS_KEY, JSON.stringify(reservations));
+  localStorage.setItem(
+    PURCHASED_KEY,
+    JSON.stringify(purchasedIds)
+  );
+
+  localStorage.setItem(
+    RESERVATIONS_KEY,
+    JSON.stringify(reservations)
+  );
 }
+
+/* ==================================================
+   CONTROLE DOS ITENS COMPRADOS
+   ================================================== */
 
 function setPurchased(itemId, purchased) {
   if (purchased) {
-    if (!purchasedIds.includes(itemId)) purchasedIds.push(itemId);
+    if (!purchasedIds.includes(itemId)) {
+      purchasedIds.push(itemId);
+    }
   } else {
-    purchasedIds = purchasedIds.filter(id => id !== itemId);
+    purchasedIds = purchasedIds.filter(
+      id => id !== itemId
+    );
   }
 
   saveState();
   render();
 }
 
+/* ==================================================
+   MODAL DE RESERVA
+   ================================================== */
+
 function openReservationModal(item) {
   selectedReservationItemId = item.id;
+
   modalItemName.textContent = item.name;
-  reservationName.value = reservations[item.id] || "";
+
+  reservationName.value =
+    reservations[item.id] || "";
+
   reservationModal.classList.remove("hidden");
+
   document.body.style.overflow = "hidden";
 
-  setTimeout(() => reservationName.focus(), 50);
+  setTimeout(() => {
+    reservationName.focus();
+  }, 50);
 }
 
 function closeReservationModal() {
   selectedReservationItemId = null;
+
   reservationModal.classList.add("hidden");
+
   document.body.style.overflow = "";
+
   reservationForm.reset();
 }
 
 function removeReservation(itemId) {
   const reservedBy = reservations[itemId];
+
   const confirmed = window.confirm(
     `Este item está reservado por ${reservedBy}. Deseja cancelar a reserva?`
   );
 
-  if (!confirmed) return;
+  if (!confirmed) {
+    return;
+  }
 
   delete reservations[itemId];
+
   saveState();
   render();
 }
 
+/* ==================================================
+   CRIAÇÃO DOS CARTÕES DOS PRODUTOS
+   ================================================== */
+
 function createItemCard(item, isPurchased) {
-  const fragment = itemTemplate.content.cloneNode(true);
-  const card = fragment.querySelector(".item-card");
-  const image = fragment.querySelector(".item-image");
-  const name = fragment.querySelector(".item-name");
-  const description = fragment.querySelector(".item-description");
-  const productLink = fragment.querySelector(".product-link");
-  const reservationLabel = fragment.querySelector(".reservation-label");
-  const statusButton = fragment.querySelector(".status-button");
-  const reserveButton = fragment.querySelector(".reserve-button");
+  const fragment =
+    itemTemplate.content.cloneNode(true);
+
+  const card =
+    fragment.querySelector(".item-card");
+
+  const image =
+    fragment.querySelector(".item-image");
+
+  const name =
+    fragment.querySelector(".item-name");
+
+  const description =
+    fragment.querySelector(".item-description");
+
+  const productLink =
+    fragment.querySelector(".product-link");
+
+  const reservationLabel =
+    fragment.querySelector(".reservation-label");
+
+  const statusButton =
+    fragment.querySelector(".status-button");
+
+  const reserveButton =
+    fragment.querySelector(".reserve-button");
 
   image.src = item.image;
   image.alt = `Foto de ${item.name}`;
+
   image.addEventListener("error", () => {
-    image.src = "https://placehold.co/360x360/edf7ff/3979c7?text=Produto";
+    image.src =
+      "https://placehold.co/360x360/edf7ff/3979c7?text=Produto";
   });
 
   name.textContent = item.name;
@@ -205,14 +313,27 @@ function createItemCard(item, isPurchased) {
   const reservedBy = reservations[item.id];
 
   if (reservedBy) {
-    reservationLabel.textContent = `🔖 Reservado por ${reservedBy}`;
+    reservationLabel.textContent =
+      `🔖 Reservado por ${reservedBy}`;
+
     reservationLabel.classList.remove("hidden");
-    reserveButton.textContent = "Cancelar reserva";
+
+    reserveButton.textContent =
+      "Cancelar reserva";
+
     reserveButton.classList.add("is-reserved");
-    reserveButton.addEventListener("click", () => removeReservation(item.id));
+
+    reserveButton.addEventListener(
+      "click",
+      () => removeReservation(item.id)
+    );
   } else {
     reserveButton.textContent = "🔖 Reservar";
-    reserveButton.addEventListener("click", () => openReservationModal(item));
+
+    reserveButton.addEventListener(
+      "click",
+      () => openReservationModal(item)
+    );
   }
 
   statusButton.textContent = isPurchased
@@ -221,14 +342,28 @@ function createItemCard(item, isPurchased) {
       ? "🔒 Item reservado"
       : "✓ Marcar como comprado";
 
-  // Um item reservado não pode ser marcado como comprado.
-  // Ao cancelar a reserva, o botão volta a ser habilitado.
+  /*
+    Um item reservado não pode ser marcado
+    como comprado.
+
+    Ao cancelar a reserva, o botão volta
+    a ser habilitado.
+  */
   if (reservedBy && !isPurchased) {
     statusButton.disabled = true;
+
     statusButton.classList.add("is-disabled");
-    statusButton.title = `Reservado por ${reservedBy}`;
+
+    statusButton.title =
+      `Reservado por ${reservedBy}`;
   } else {
-    statusButton.addEventListener("click", () => setPurchased(item.id, !isPurchased));
+    statusButton.addEventListener(
+      "click",
+      () => setPurchased(
+        item.id,
+        !isPurchased
+      )
+    );
   }
 
   if (isPurchased) {
@@ -238,78 +373,164 @@ function createItemCard(item, isPurchased) {
   return fragment;
 }
 
+/* ==================================================
+   CONTADORES DOS PRODUTOS
+   ================================================== */
+
 function updateCount(element, amount) {
-  element.textContent = `${amount} ${amount === 1 ? "item" : "itens"}`;
+  element.textContent =
+    `${amount} ${amount === 1 ? "item" : "itens"}`;
 }
 
+/* ==================================================
+   ATUALIZAÇÃO DA TELA
+   ================================================== */
+
 function render() {
-  const shoppingItems = initialItems.filter(item => !purchasedIds.includes(item.id));
-  const purchasedItems = initialItems.filter(item => purchasedIds.includes(item.id));
+  const shoppingItems = initialItems.filter(
+    item => !purchasedIds.includes(item.id)
+  );
+
+  const purchasedItems = initialItems.filter(
+    item => purchasedIds.includes(item.id)
+  );
 
   shoppingList.replaceChildren();
   purchasedList.replaceChildren();
 
   shoppingItems.forEach(item => {
-    shoppingList.appendChild(createItemCard(item, false));
+    shoppingList.appendChild(
+      createItemCard(item, false)
+    );
   });
 
   purchasedItems.forEach(item => {
-    purchasedList.appendChild(createItemCard(item, true));
+    purchasedList.appendChild(
+      createItemCard(item, true)
+    );
   });
 
-  updateCount(shoppingCount, shoppingItems.length);
-  updateCount(purchasedCount, purchasedItems.length);
-  shoppingTabCount.textContent = shoppingItems.length;
-  purchasedTabCount.textContent = purchasedItems.length;
+  updateCount(
+    shoppingCount,
+    shoppingItems.length
+  );
 
-  shoppingEmpty.classList.toggle("hidden", shoppingItems.length > 0);
-  purchasedEmpty.classList.toggle("hidden", purchasedItems.length > 0);
+  updateCount(
+    purchasedCount,
+    purchasedItems.length
+  );
+
+  shoppingTabCount.textContent =
+    shoppingItems.length;
+
+  purchasedTabCount.textContent =
+    purchasedItems.length;
+
+  shoppingEmpty.classList.toggle(
+    "hidden",
+    shoppingItems.length > 0
+  );
+
+  purchasedEmpty.classList.toggle(
+    "hidden",
+    purchasedItems.length > 0
+  );
 }
 
-reservationForm.addEventListener("submit", event => {
-  event.preventDefault();
+/* ==================================================
+   CONFIRMAÇÃO DA RESERVA
+   ================================================== */
 
-  const name = reservationName.value.trim();
+reservationForm.addEventListener(
+  "submit",
+  event => {
+    event.preventDefault();
 
-  if (!name || !selectedReservationItemId) return;
+    const name =
+      reservationName.value.trim();
 
-  reservations[selectedReservationItemId] = name;
-  saveState();
-  closeReservationModal();
-  render();
-});
-
-document.querySelectorAll("[data-close-modal]").forEach(element => {
-  element.addEventListener("click", closeReservationModal);
-});
-
-document.addEventListener("keydown", event => {
-  if (event.key === "Escape" && !reservationModal.classList.contains("hidden")) {
-    closeReservationModal();
-  }
-});
-
-document.querySelectorAll(".tab").forEach(tab => {
-  tab.addEventListener("click", () => {
-    document.querySelectorAll(".tab").forEach(item => item.classList.remove("active"));
-    tab.classList.add("active");
-
-    document.querySelectorAll(".panel").forEach(panel => {
-      panel.classList.remove("active-panel");
-    });
-
-    const panel = tab.dataset.tab === "shopping"
-      ? document.querySelector("#shoppingPanel")
-      : document.querySelector("#purchasedPanel");
-
-    panel.classList.add("active-panel");
-
-    if (window.innerWidth <= 700) {
-      panel.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (!name || !selectedReservationItemId) {
+      return;
     }
+
+    reservations[selectedReservationItemId] =
+      name;
+
+    saveState();
+    closeReservationModal();
+    render();
+  }
+);
+
+/* ==================================================
+   FECHAMENTO DO MODAL
+   ================================================== */
+
+document
+  .querySelectorAll("[data-close-modal]")
+  .forEach(element => {
+    element.addEventListener(
+      "click",
+      closeReservationModal
+    );
   });
-});
 
+document.addEventListener(
+  "keydown",
+  event => {
+    if (
+      event.key === "Escape" &&
+      !reservationModal.classList.contains("hidden")
+    ) {
+      closeReservationModal();
+    }
+  }
+);
 
+/* ==================================================
+   NAVEGAÇÃO ENTRE AS ABAS
+   ================================================== */
 
+document
+  .querySelectorAll(".tab")
+  .forEach(tab => {
+    tab.addEventListener("click", () => {
+      document
+        .querySelectorAll(".tab")
+        .forEach(item => {
+          item.classList.remove("active");
+        });
+
+      tab.classList.add("active");
+
+      document
+        .querySelectorAll(".panel")
+        .forEach(panel => {
+          panel.classList.remove("active-panel");
+        });
+
+      const panel =
+        tab.dataset.tab === "shopping"
+          ? document.querySelector("#shoppingPanel")
+          : document.querySelector("#purchasedPanel");
+
+      panel.classList.add("active-panel");
+
+      if (window.innerWidth <= 700) {
+        panel.scrollIntoView({
+          behavior: "smooth",
+          block: "start"
+        });
+      }
+    });
+  });
+
+/* ==================================================
+   INICIALIZAÇÃO DA PÁGINA
+   ================================================== */
+
+// Atualiza a semana de gestação.
+atualizarSemanaGestacao();
+
+// Exibe as listas de compras e comprados.
 render();
