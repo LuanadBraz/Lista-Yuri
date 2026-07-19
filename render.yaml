@@ -1,14 +1,18 @@
 services:
   - type: web
-    name: lista-yuri-luana-api
+    name: lista-yuri-api-luanadbraz
     runtime: node
+    plan: starter
     buildCommand: npm install
     startCommand: npm start
     healthCheckPath: /api/health
+    autoDeploy: true
     envVars:
-      - key: DATA_DIR
-        value: /var/data
+      - key: NODE_VERSION
+        value: 20.19.4
+      - key: DATA_FILE
+        value: /var/data/state.json
     disk:
-      name: lista-yuri-data
+      name: lista-yuri-dados
       mountPath: /var/data
       sizeGB: 1

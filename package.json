@@ -1,8 +1,8 @@
 {
-  "name": "lista-yuri",
+  "name": "lista-yuri-api",
   "version": "1.0.0",
   "private": true,
-  "description": "Lista compartilhada de presentes do Yuri",
+  "description": "API compartilhada para reservas e compras da Lista Yuri",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"

@@ -5,32 +5,17 @@ const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 10000;
-const DATA_DIR = process.env.DATA_DIR || '/var/data';
-const DATA_FILE = path.join(DATA_DIR, 'lista-yuri.json');
+const DATA_FILE = process.env.DATA_FILE || path.join(__dirname, 'data', 'state.json');
 
-const allowedOrigins = new Set([
-  'https://luanadbraz.github.io',
-  'http://localhost:5500',
-  'http://127.0.0.1:5500',
-  'http://localhost:3000',
-  'http://127.0.0.1:3000'
-]);
-
-app.use(cors({
-  origin(origin, callback) {
-    if (!origin || allowedOrigins.has(origin)) return callback(null, true);
-    return callback(new Error('Origem não permitida pelo CORS.'));
-  }
-}));
+app.use(cors({ origin: '*' }));
 app.use(express.json({ limit: '20kb' }));
-app.use(express.static(__dirname));
 
 function emptyState() {
-  return { purchasedIds: [], reservations: {}, updatedAt: new Date().toISOString() };
+  return { purchasedIds: [], reservations: {} };
 }
 
 function ensureDataFile() {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
+  fs.mkdirSync(path.dirname(DATA_FILE), { recursive: true });
   if (!fs.existsSync(DATA_FILE)) {
     fs.writeFileSync(DATA_FILE, JSON.stringify(emptyState(), null, 2), 'utf8');
   }
@@ -42,32 +27,25 @@ function readState() {
     const parsed = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
     return {
       purchasedIds: Array.isArray(parsed.purchasedIds) ? parsed.purchasedIds : [],
-      reservations: parsed.reservations && typeof parsed.reservations === 'object' ? parsed.reservations : {},
-      updatedAt: parsed.updatedAt || new Date().toISOString()
+      reservations: parsed.reservations && typeof parsed.reservations === 'object'
+        ? parsed.reservations
+        : {}
     };
   } catch (error) {
     console.error('Falha ao ler os dados:', error);
-    const state = emptyState();
-    writeState(state);
-    return state;
+    return emptyState();
   }
 }
 
 function writeState(state) {
   ensureDataFile();
-  const normalized = {
-    purchasedIds: [...new Set(state.purchasedIds || [])],
-    reservations: state.reservations || {},
-    updatedAt: new Date().toISOString()
-  };
   const tempFile = `${DATA_FILE}.tmp`;
-  fs.writeFileSync(tempFile, JSON.stringify(normalized, null, 2), 'utf8');
+  fs.writeFileSync(tempFile, JSON.stringify(state, null, 2), 'utf8');
   fs.renameSync(tempFile, DATA_FILE);
-  return normalized;
 }
 
-function validItemId(value) {
-  return typeof value === 'string' && /^[a-z0-9-]{1,80}$/.test(value);
+function cleanText(value, maxLength = 80) {
+  return String(value ?? '').trim().slice(0, maxLength);
 }
 
 app.get('/api/health', (_req, res) => {
@@ -75,51 +53,63 @@ app.get('/api/health', (_req, res) => {
 });
 
 app.get('/api/state', (_req, res) => {
-  res.json(readState());
+  res.json({ ok: true, state: readState() });
 });
 
 app.post('/api/reserve', (req, res) => {
-  const itemId = String(req.body.itemId || '').trim();
-  const name = String(req.body.name || '').trim().slice(0, 60);
+  const itemId = cleanText(req.body.itemId, 120);
+  const name = cleanText(req.body.name, 80);
 
-  if (!validItemId(itemId) || !name) {
-    return res.status(400).json({ message: 'Item ou nome inválido.' });
+  if (!itemId || !name) {
+    return res.status(400).json({ ok: false, message: 'Informe seu nome para reservar.' });
   }
 
   const state = readState();
+
   if (state.purchasedIds.includes(itemId)) {
-    return res.status(409).json({ message: 'Este item já foi comprado.' });
+    return res.status(409).json({ ok: false, message: 'Este item já foi marcado como comprado.' });
   }
-  if (state.reservations[itemId] && state.reservations[itemId] !== name) {
-    return res.status(409).json({ message: `Este item já foi reservado por ${state.reservations[itemId]}.` });
+
+  const currentName = state.reservations[itemId];
+  if (currentName && currentName !== name) {
+    return res.status(409).json({
+      ok: false,
+      message: `Este item já foi reservado por ${currentName}.`
+    });
   }
 
   state.reservations[itemId] = name;
-  return res.json(writeState(state));
+  writeState(state);
+  return res.json({ ok: true, state });
 });
 
 app.post('/api/cancel-reservation', (req, res) => {
-  const itemId = String(req.body.itemId || '').trim();
-  if (!validItemId(itemId)) {
-    return res.status(400).json({ message: 'Item inválido.' });
+  const itemId = cleanText(req.body.itemId, 120);
+  if (!itemId) {
+    return res.status(400).json({ ok: false, message: 'Item inválido.' });
   }
 
   const state = readState();
   delete state.reservations[itemId];
-  return res.json(writeState(state));
+  writeState(state);
+  return res.json({ ok: true, state });
 });
 
 app.post('/api/purchase', (req, res) => {
-  const itemId = String(req.body.itemId || '').trim();
+  const itemId = cleanText(req.body.itemId, 120);
   const purchased = req.body.purchased === true;
 
-  if (!validItemId(itemId)) {
-    return res.status(400).json({ message: 'Item inválido.' });
+  if (!itemId) {
+    return res.status(400).json({ ok: false, message: 'Item inválido.' });
   }
 
   const state = readState();
+
   if (purchased && state.reservations[itemId]) {
-    return res.status(409).json({ message: `Este item está reservado por ${state.reservations[itemId]}.` });
+    return res.status(409).json({
+      ok: false,
+      message: `Este item está reservado por ${state.reservations[itemId]}. Cancele a reserva antes.`
+    });
   }
 
   if (purchased) {
@@ -129,15 +119,16 @@ app.post('/api/purchase', (req, res) => {
     state.purchasedIds = state.purchasedIds.filter(id => id !== itemId);
   }
 
-  return res.json(writeState(state));
+  writeState(state);
+  return res.json({ ok: true, state });
 });
 
-app.use((error, _req, res, _next) => {
-  console.error(error);
-  res.status(500).json({ message: 'Erro interno do servidor.' });
+app.use((_req, res) => {
+  res.status(404).json({ ok: false, message: 'Rota não encontrada.' });
 });
 
 app.listen(PORT, '0.0.0.0', () => {
   ensureDataFile();
-  console.log(`Lista Yuri disponível na porta ${PORT}`);
+  console.log(`Lista Yuri API disponível na porta ${PORT}`);
+  console.log(`Dados salvos em: ${DATA_FILE}`);
 });
