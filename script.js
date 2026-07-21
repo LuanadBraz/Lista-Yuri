@@ -17,7 +17,7 @@ const initialItems = [
     id: "sling",
     name: "Sling",
     description: "Para carregar o bebê com conforto e proximidade.",
-    image: "https://loremflickr.com/360/360/baby,sling?lock=102",
+    image: "img/sling.jpeg",
     link: "https://br.shp.ee/QAXh46BA"
   },
   {
