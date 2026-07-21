@@ -101,7 +101,7 @@ const initialItems = [
     id: "protetor-colchao",
     name: "Protetor de colchão impermeável",
     description: "Para proteger o colchão do berço.",
-    image: "img/protetor.jpeg",
+    image: "img/protetor.jpg",
     link: ""
   }
 ];
